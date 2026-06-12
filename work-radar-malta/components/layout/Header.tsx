@@ -1,7 +1,10 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
+import { UserStatus } from "@/components/auth/UserStatus";
+import { getCurrentUser } from "@/lib/supabase/server";
 
-export function Header() {
+export async function Header() {
+  const user = await getCurrentUser();
+
   return (
     <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-5 sm:px-8 lg:px-10">
       <Link className="flex items-center gap-3" href="/">
@@ -17,9 +20,7 @@ export function Header() {
         <a href="#reviews">Reviews</a>
         <a href="#how-it-works">How it works</a>
       </nav>
-      <Button size="sm" variant="secondary">
-        Share review
-      </Button>
+      <UserStatus user={user} />
     </header>
   );
 }

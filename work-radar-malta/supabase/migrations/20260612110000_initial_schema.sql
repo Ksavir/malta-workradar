@@ -1,6 +1,7 @@
 begin;
 
 create extension if not exists pgcrypto;
+create schema if not exists private;
 
 do $$
 begin
@@ -149,40 +150,40 @@ begin
 end;
 $$;
 
-create or replace function public.current_user_has_role(allowed_roles public.user_role[])
+create or replace function private.current_user_has_role(allowed_roles public.user_role[])
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, private
 as $$
   select exists (
     select 1
     from public.profiles
-    where id = auth.uid()
+    where id = (select auth.uid())
       and role = any(allowed_roles)
       and deleted_at is null
   );
 $$;
 
-create or replace function public.is_admin_or_moderator()
+create or replace function private.is_admin_or_moderator()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = public, private
 as $$
-  select public.current_user_has_role(array['admin'::public.user_role, 'moderator'::public.user_role]);
+  select private.current_user_has_role(array['admin'::public.user_role, 'moderator'::public.user_role]);
 $$;
 
-create or replace function public.prevent_profile_self_privilege_escalation()
+create or replace function private.prevent_profile_self_privilege_escalation()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, private
 as $$
 begin
-  if auth.uid() = old.id and not public.current_user_has_role(array['admin'::public.user_role]) then
+  if (select auth.uid()) = old.id and not private.current_user_has_role(array['admin'::public.user_role]) then
     if new.id is distinct from old.id then
       raise exception 'Users cannot change their profile id.';
     end if;
@@ -204,11 +205,11 @@ begin
 end;
 $$;
 
-create or replace function public.handle_new_user()
+create or replace function private.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, private
 as $$
 begin
   insert into public.profiles (id, display_name)
@@ -245,12 +246,12 @@ for each row execute function public.handle_updated_at();
 drop trigger if exists profiles_prevent_self_privilege_escalation on public.profiles;
 create trigger profiles_prevent_self_privilege_escalation
 before update on public.profiles
-for each row execute function public.prevent_profile_self_privilege_escalation();
+for each row execute function private.prevent_profile_self_privilege_escalation();
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
-for each row execute function public.handle_new_user();
+for each row execute function private.handle_new_user();
 
 alter table public.profiles enable row level security;
 alter table public.companies enable row level security;
@@ -262,22 +263,22 @@ create policy "Users can read their own profile"
 on public.profiles
 for select
 to authenticated
-using (id = auth.uid());
+using (id = (select auth.uid()));
 
 drop policy if exists "Admins can read all profiles" on public.profiles;
 create policy "Admins can read all profiles"
 on public.profiles
 for select
 to authenticated
-using (public.current_user_has_role(array['admin'::public.user_role]));
+using ((select private.current_user_has_role(array['admin'::public.user_role])));
 
 drop policy if exists "Users can update their own allowed profile fields" on public.profiles;
 create policy "Users can update their own allowed profile fields"
 on public.profiles
 for update
 to authenticated
-using (id = auth.uid())
-with check (id = auth.uid());
+using (id = (select auth.uid()))
+with check (id = (select auth.uid()));
 
 drop policy if exists "Anyone can read approved companies" on public.companies;
 create policy "Anyone can read approved companies"
@@ -291,14 +292,14 @@ create policy "Users can read their own companies"
 on public.companies
 for select
 to authenticated
-using (created_by = auth.uid());
+using (created_by = (select auth.uid()));
 
 drop policy if exists "Moderators can read all companies" on public.companies;
 create policy "Moderators can read all companies"
 on public.companies
 for select
 to authenticated
-using (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()));
 
 drop policy if exists "Users can create pending companies" on public.companies;
 create policy "Users can create pending companies"
@@ -306,7 +307,7 @@ on public.companies
 for insert
 to authenticated
 with check (
-  created_by = auth.uid()
+  created_by = (select auth.uid())
   and status = 'pending'
 );
 
@@ -315,8 +316,8 @@ create policy "Moderators can update all companies"
 on public.companies
 for update
 to authenticated
-using (public.is_admin_or_moderator())
-with check (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()))
+with check ((select private.is_admin_or_moderator()));
 
 drop policy if exists "Anyone can read approved reviews" on public.reviews;
 create policy "Anyone can read approved reviews"
@@ -330,14 +331,14 @@ create policy "Users can read their own reviews"
 on public.reviews
 for select
 to authenticated
-using (user_id = auth.uid());
+using (user_id = (select auth.uid()));
 
 drop policy if exists "Moderators can read all reviews" on public.reviews;
 create policy "Moderators can read all reviews"
 on public.reviews
 for select
 to authenticated
-using (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()));
 
 drop policy if exists "Users can create pending reviews" on public.reviews;
 create policy "Users can create pending reviews"
@@ -345,7 +346,7 @@ on public.reviews
 for insert
 to authenticated
 with check (
-  user_id = auth.uid()
+  user_id = (select auth.uid())
   and status = 'pending'
 );
 
@@ -354,8 +355,8 @@ create policy "Moderators can update all reviews"
 on public.reviews
 for update
 to authenticated
-using (public.is_admin_or_moderator())
-with check (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()))
+with check ((select private.is_admin_or_moderator()));
 
 drop policy if exists "Users can create open review reports" on public.review_reports;
 create policy "Users can create open review reports"
@@ -363,7 +364,7 @@ on public.review_reports
 for insert
 to authenticated
 with check (
-  reported_by = auth.uid()
+  reported_by = (select auth.uid())
   and status = 'open'
 );
 
@@ -372,24 +373,26 @@ create policy "Users can read their own review reports"
 on public.review_reports
 for select
 to authenticated
-using (reported_by = auth.uid());
+using (reported_by = (select auth.uid()));
 
 drop policy if exists "Moderators can read all review reports" on public.review_reports;
 create policy "Moderators can read all review reports"
 on public.review_reports
 for select
 to authenticated
-using (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()));
 
 drop policy if exists "Moderators can update all review reports" on public.review_reports;
 create policy "Moderators can update all review reports"
 on public.review_reports
 for update
 to authenticated
-using (public.is_admin_or_moderator())
-with check (public.is_admin_or_moderator());
+using ((select private.is_admin_or_moderator()))
+with check ((select private.is_admin_or_moderator()));
 
 grant usage on schema public to anon, authenticated;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
 
 grant usage on type public.user_role to authenticated;
 grant usage on type public.company_status to anon, authenticated;
@@ -398,8 +401,9 @@ grant usage on type public.employment_type to anon, authenticated;
 grant usage on type public.report_reason to authenticated;
 grant usage on type public.report_status to authenticated;
 
-grant execute on function public.current_user_has_role(public.user_role[]) to authenticated;
-grant execute on function public.is_admin_or_moderator() to authenticated;
+revoke execute on all functions in schema private from public, anon, authenticated;
+grant execute on function private.current_user_has_role(public.user_role[]) to authenticated;
+grant execute on function private.is_admin_or_moderator() to authenticated;
 
 grant select (id, role, display_name, created_at, updated_at, deleted_at)
 on public.profiles to authenticated;
