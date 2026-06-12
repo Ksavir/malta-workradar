@@ -16,9 +16,9 @@ export async function Header() {
         </span>
       </Link>
       <nav className="hidden items-center gap-6 text-sm font-medium text-ink/65 md:flex">
-        <a href="#companies">Companies</a>
-        <a href="#reviews">Reviews</a>
-        <a href="#how-it-works">How it works</a>
+        <Link href="/companies">Companies</Link>
+        <Link href="/companies/new">Add company</Link>
+        <Link href="/#how-it-works">How it works</Link>
       </nav>
       <UserStatus user={user} />
     </header>
