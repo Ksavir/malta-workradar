@@ -54,7 +54,7 @@ export default async function DashboardPage() {
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {[
             ["Companies", "Submit employers for moderation."],
-            ["Reviews", "Draft workplace reviews safely."],
+            ["Reviews", "Track workplace reviews safely."],
             ["Reports", "Track reports you have submitted."]
           ].map(([title, description]) => (
             <Card className="p-6" key={title}>
@@ -75,6 +75,9 @@ export default async function DashboardPage() {
           </p>
           <Link className="mt-5 inline-flex font-semibold text-moss" href="/">
             Back to public site
+          </Link>
+          <Link className="ml-5 mt-5 inline-flex font-semibold text-moss" href="/dashboard/my-reviews">
+            My reviews
           </Link>
         </Card>
       </section>

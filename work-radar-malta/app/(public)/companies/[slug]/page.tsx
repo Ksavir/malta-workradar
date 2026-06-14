@@ -68,7 +68,7 @@ export default async function CompanyDetailPage({ params }: CompanyDetailPagePro
             </p>
             <Link
               className="mt-8 inline-flex rounded-full bg-moss px-5 py-3 font-semibold text-white shadow-soft transition hover:bg-ink"
-              href="/dashboard"
+              href={`/companies/${company.slug}/review`}
             >
               Leave a review
             </Link>

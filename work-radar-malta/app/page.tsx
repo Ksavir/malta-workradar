@@ -1,5 +1,5 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Footer } from "@/components/layout/Footer";
@@ -45,8 +45,18 @@ export default function Home() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Button>Explore companies</Button>
-            <Button variant="secondary">Leave a review</Button>
+            <Link
+              className="inline-flex items-center justify-center rounded-full bg-moss px-5 py-3 text-base font-semibold text-white shadow-soft transition duration-200 hover:bg-ink focus:outline-none focus:ring-4 focus:ring-harbour/20"
+              href="/companies"
+            >
+              Explore companies
+            </Link>
+            <Link
+              className="inline-flex items-center justify-center rounded-full border border-line bg-white px-5 py-3 text-base font-semibold text-ink transition duration-200 hover:border-moss hover:text-moss focus:outline-none focus:ring-4 focus:ring-harbour/20"
+              href="/submit-review"
+            >
+              Leave a review
+            </Link>
           </div>
         </div>
 
@@ -134,7 +144,12 @@ export default function Home() {
             </h2>
           </div>
           <div className="mt-8 lg:mt-0">
-            <Button variant="light">Leave a review</Button>
+            <Link
+              className="inline-flex items-center justify-center rounded-full bg-paper px-5 py-3 text-base font-semibold text-ink transition duration-200 hover:bg-white focus:outline-none focus:ring-4 focus:ring-harbour/20"
+              href="/submit-review"
+            >
+              Leave a review
+            </Link>
           </div>
         </div>
       </section>
